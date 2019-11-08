@@ -8,6 +8,18 @@
 [License]: https://img.shields.io/badge/License-Apache--2.0%20OR%20MIT-blue.svg
 [Travis CI]: https://img.shields.io/travis/com/yangby-cryptape/ckb-gbgc.svg
 
+## Usage
+
+```bash
+# Set the level of logger
+export RUST_LOG=warn,ckb_gbgc=info
+cargo run --release -- \
+    --url "http://YOUR-CKB-JSONRPC-SERVER-ADDRESS:PORT" \
+    --epoch DEFAULT-IS-89 \
+    --input "THE-ISSUED-CELLS-LIST-FILE" \
+    --output "THE-OUTPUT-SPEC-TOML"
+```
+
 ## License
 
 Licensed under either of [Apache License, Version 2.0] or [MIT License], at
