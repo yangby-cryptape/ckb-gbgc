@@ -40,12 +40,12 @@ impl<'a> TryFrom<&'a clap::ArgMatches<'a>> for Arguments {
             .value_of("url")
             .map(|url_str| url::Url::parse(url_str))
             .transpose()?
-            .ok_or(Error::Unreachable)?;
+            .ok_or_else(|| Error::Unreachable("no argument 'url'".to_owned()))?;
         let epoch = matches
             .value_of("epoch")
             .map(|num_str| num_str.parse::<u64>().map(|num| num + 1))
             .transpose()?
-            .ok_or(Error::Unreachable)
+            .ok_or_else(|| Error::Unreachable("no argument 'epoch'".to_owned()))
             .and_then(|epoch| {
                 if epoch < constants::EPOCH_AVG_COUNT {
                     Err(Error::EpochTooSmall(epoch, constants::EPOCH_AVG_COUNT))
@@ -57,7 +57,7 @@ impl<'a> TryFrom<&'a clap::ArgMatches<'a>> for Arguments {
             .value_of("planned-epoch")
             .map(|num_str| num_str.parse::<u64>().map(|num| num + 1))
             .transpose()?
-            .ok_or(Error::Unreachable)
+            .ok_or_else(|| Error::Unreachable("no argument 'planned-epoch'".to_owned()))
             .and_then(|epoch| {
                 if epoch < constants::EPOCH_AVG_COUNT {
                     Err(Error::EpochTooSmall(epoch, constants::EPOCH_AVG_COUNT))
@@ -67,7 +67,7 @@ impl<'a> TryFrom<&'a clap::ArgMatches<'a>> for Arguments {
             })?;
         let input = matches
             .value_of("input")
-            .ok_or(Error::Unreachable)
+            .ok_or_else(|| Error::Unreachable("no argument 'input'".to_owned()))
             .and_then(|path_str| {
                 let path = path::Path::new(path_str);
                 if path.exists() {
@@ -85,7 +85,7 @@ impl<'a> TryFrom<&'a clap::ArgMatches<'a>> for Arguments {
             })?;
         let output = matches
             .value_of("output")
-            .ok_or(Error::Unreachable)
+            .ok_or_else(|| Error::Unreachable("no argument 'output'".to_owned()))
             .and_then(|path_str| {
                 let path = path::Path::new(path_str);
                 if path.exists() {

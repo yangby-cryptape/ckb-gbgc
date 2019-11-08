@@ -204,7 +204,9 @@ pub fn fetch(args: &arguments::Arguments) -> Result<ChainData> {
             }
             break;
         } else if count > number_last {
-            return Err(Error::Unreachable);
+            return Err(Error::Unreachable(
+                "count > number_last when syncing".to_owned(),
+            ));
         }
         sleep_millis(500);
     }

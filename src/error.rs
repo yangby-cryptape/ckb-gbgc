@@ -14,8 +14,8 @@ use uckb_jsonrpc_client::url;
 
 #[derive(Debug, Fail)]
 pub enum Error {
-    #[fail(display = "internal error: should be unreachable")]
-    Unreachable,
+    #[fail(display = "internal error: should be unreachable, {}", _0)]
+    Unreachable(String),
     #[fail(display = "internal error: {} should be implemented", _0)]
     Unimplemented(String),
 

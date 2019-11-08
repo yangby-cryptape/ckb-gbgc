@@ -43,15 +43,25 @@ pub fn process(
             .lines()
             .map(|line| {
                 let mut part = line.split(',');
-                let addr = part.next().ok_or(Error::Unreachable)?;
-                let ckb = part.next().ok_or(Error::Unreachable)?.parse::<u64>()?;
+                let addr = part
+                    .next()
+                    .ok_or_else(|| Error::Unreachable(format!("split address from '{}'", line)))?;
+                let ckb = part
+                    .next()
+                    .ok_or_else(|| Error::Unreachable(format!("split ckb from '{}'", line)))?
+                    .parse::<u64>()?;
                 let date_opt = part.next();
                 if part.next().is_some() {
-                    Err(Error::Unreachable)
+                    Err(Error::Unreachable(format!(
+                        "'{}' has redundant fileds",
+                        line
+                    )))
                 } else {
                     let hash = hash::extract_from_address_mainnet(addr)
                         .transpose()?
-                        .ok_or(Error::Unreachable)?;
+                        .ok_or_else(|| {
+                            Error::Unreachable(format!("parse mainnet address from '{}'", addr))
+                        })?;
                     let cell = if let Some(date) = date_opt {
                         asset::Owner::new_multi(
                             vec![hash],
@@ -73,7 +83,10 @@ pub fn process(
         let imported_actual = imported_cells.iter().map(|cell| cell.capacity).sum::<u64>();
         log::info!("imported part = {}", imported_actual);
         if imported_expected != imported_actual {
-            return Err(Error::Unreachable);
+            return Err(Error::Unreachable(format!(
+                "imported capacity: expected: {}, actual: {}",
+                imported_expected, imported_actual
+            )));
         }
         cells.append(&mut imported_cells);
     }
@@ -104,13 +117,18 @@ pub fn process(
                         * token::BYTE_SHANNONS
                     + cfg.message.as_bytes().len() as u64 * token::BYTE_SHANNONS
             })
-            .ok_or(Error::Unreachable)?;
+            .ok_or_else(|| Error::Unreachable("compute foundation spent".to_owned()))?;
         log::info!("foundation spent = {}", foundation_spent);
 
         let foundation_reserve = constants::INITIAL_TOTAL_SUPPLY * 2 / 100 - foundation_spent;
 
         let foundation_cell = hash::extract_from_address_mainnet(constants::FOUNDATION_ADDR)
-            .ok_or(Error::Unreachable)?
+            .ok_or_else(|| {
+                Error::Unreachable(format!(
+                    "parse mainnet address from '{}'",
+                    constants::FOUNDATION_ADDR
+                ))
+            })?
             .and_then(|hash| {
                 asset::Owner::new_multi(
                     vec![hash],
@@ -139,7 +157,12 @@ pub fn process(
 
     // Testnet Remained
     let testnet_cell = hash::extract_from_address_mainnet(constants::FOUNDATION_TESTNET_ADDR)
-        .ok_or(Error::Unreachable)?
+        .ok_or_else(|| {
+            Error::Unreachable(format!(
+                "parse mainnet address from '{}'",
+                constants::FOUNDATION_TESTNET_ADDR
+            ))
+        })?
         .map(|hash| {
             asset::Owner::new_single(hash)
                 .with_shannons(remained)
@@ -148,8 +171,13 @@ pub fn process(
     log::info!("foundation testnet part = {}", testnet_cell.capacity);
     cells.push(testnet_cell);
 
-    if cells.iter().map(|cell| cell.capacity).sum::<u64>() != constants::INITIAL_TOTAL_SUPPLY {
-        return Err(Error::Unreachable);
+    let total_supply = cells.iter().map(|cell| cell.capacity).sum::<u64>();
+    if total_supply != constants::INITIAL_TOTAL_SUPPLY {
+        return Err(Error::Unreachable(format!(
+            "total supply: expected: {}, actual: {}",
+            constants::INITIAL_TOTAL_SUPPLY,
+            total_supply
+        )));
     }
 
     Ok((cells, target))
@@ -189,7 +217,9 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
             for (index, result) in reader.records().enumerate() {
                 let record = result?;
                 if record.len() != 2 {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-1 awards record length".to_owned(),
+                    ));
                 }
                 let hash = {
                     let addr_str = record.get(0).unwrap();
@@ -203,7 +233,11 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
                     0 => token::Token::from_bytes(200_000),
                     1 => token::Token::from_bytes(100_000),
                     2 => token::Token::from_bytes(60_000),
-                    _ => return Err(Error::Unreachable),
+                    _ => {
+                        return Err(Error::Unreachable(
+                            "round 1 awards only 3 winners".to_owned(),
+                        ))
+                    }
                 };
                 expected_total_reward += token.shannons();
                 let asset = asset::Owner::new_single(hash).with_token(token);
@@ -219,7 +253,9 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
             for result in reader.records() {
                 let record = result?;
                 if record.len() != 2 {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-1 lottery record length".to_owned(),
+                    ));
                 }
                 counter += 1;
                 let hash = {
@@ -234,7 +270,9 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
                 assets.push(asset);
             }
             if counter != 64 {
-                return Err(Error::Unreachable);
+                return Err(Error::Unreachable(
+                    "round 1 lottery only 64 winners".to_owned(),
+                ));
             }
             expected_total_reward += lottery_reward * 64 * token::BYTE_SHANNONS;
             assets_append!(assets_total, assets, "round 1 lottery");
@@ -251,16 +289,20 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
             for result in reader.records() {
                 let record = result?;
                 if record.len() != 4 {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable("round-2 mined record length".to_owned()));
                 }
                 counter += 1;
                 let block_reward = record.get(1).unwrap().parse::<u64>().unwrap();
                 if block_reward < least_block_reward {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-2 mined block_reward < least_block_reward".to_owned(),
+                    ));
                 }
                 let token_reward = record.get(3).unwrap().parse::<u64>().unwrap();
                 if token_reward < least_token_reward {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-2 mined token_reward < least_token_reward".to_owned(),
+                    ));
                 }
                 total_block_reward += block_reward;
                 total_token_reward += token_reward;
@@ -280,11 +322,15 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
                 let expected_token_reward = u128::from(*block_reward) * u128::from(reward_pool)
                     / u128::from(total_block_reward);
                 if expected_token_reward != u128::from(*token_reward) {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-2 mined expected_token_reward != token_reward".to_owned(),
+                    ));
                 }
             }
             if (reward_pool - counter) > total_token_reward || total_token_reward > reward_pool {
-                return Err(Error::Unreachable);
+                return Err(Error::Unreachable(
+                    "round-2 mined check total_token_reward".to_owned(),
+                ));
             }
             expected_total_reward += reward_pool * token::BYTE_SHANNONS;
             assets_append!(assets_total, assets, "round 2 mined");
@@ -298,7 +344,7 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
             for result in reader.records() {
                 let record = result?;
                 if record.len() != 3 {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable("round-2 lucky record length".to_owned()));
                 }
                 let epoch = record.get(0).unwrap().parse::<u64>().unwrap();
                 if epoch == 0 || epoch > winners {
@@ -317,7 +363,10 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
                 assets.push(asset);
             }
             if counter != winners {
-                return Err(Error::Unreachable);
+                return Err(Error::Unreachable(format!(
+                    "count(={}) for winners(={}) is not match",
+                    counter, winners
+                )));
             }
             expected_total_reward += reward_pool * token::BYTE_SHANNONS;
             assets_append!(assets_total, assets, "round 2 lucky");
@@ -334,16 +383,20 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
             for result in reader.records() {
                 let record = result?;
                 if record.len() != 4 {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable("round-3 mined record length".to_owned()));
                 }
                 counter += 1;
                 let block_reward = record.get(2).unwrap().parse::<u64>().unwrap();
                 if block_reward < least_block_reward {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-3 mined block_reward < least_block_reward".to_owned(),
+                    ));
                 }
                 let token_reward = record.get(3).unwrap().parse::<u64>().unwrap();
                 if token_reward < least_token_reward {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-3 mined token_reward < least_token_reward".to_owned(),
+                    ));
                 }
                 total_block_reward += block_reward;
                 total_token_reward += token_reward;
@@ -363,11 +416,15 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
                 let expected_token_reward = u128::from(*block_reward) * u128::from(reward_pool)
                     / u128::from(total_block_reward);
                 if expected_token_reward != u128::from(*token_reward) {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-3 mined expected_token_reward != token_reward".to_owned(),
+                    ));
                 }
             }
             if (reward_pool - counter) > total_token_reward || total_token_reward > reward_pool {
-                return Err(Error::Unreachable);
+                return Err(Error::Unreachable(
+                    "round-3 mined check total_token_reward".to_owned(),
+                ));
             }
             expected_total_reward += reward_pool * token::BYTE_SHANNONS;
             assets_append!(assets_total, assets, "round 3 mined");
@@ -381,7 +438,7 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
             for result in reader.records() {
                 let record = result?;
                 if record.len() != 3 {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable("round-3 lucky record length".to_owned()));
                 }
                 let epoch = record.get(0).unwrap().parse::<u64>().unwrap();
                 if epoch == 0 || epoch > winners {
@@ -400,7 +457,10 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
                 assets.push(asset);
             }
             if counter != winners {
-                return Err(Error::Unreachable);
+                return Err(Error::Unreachable(format!(
+                    "count(={}) for winners(={}) is not match",
+                    counter, winners
+                )));
             }
             expected_total_reward += reward_pool * token::BYTE_SHANNONS;
             assets_append!(assets_total, assets, "round 3 lucky");
@@ -417,16 +477,20 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
             for result in reader.records() {
                 let record = result?;
                 if record.len() != 4 {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable("round-4 mined record length".to_owned()));
                 }
                 counter += 1;
                 let block_reward = record.get(1).unwrap().parse::<u64>().unwrap();
                 if block_reward < least_block_reward {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-4 mined block_reward < least_block_reward".to_owned(),
+                    ));
                 }
                 let token_reward = record.get(3).unwrap().parse::<u64>().unwrap();
                 if token_reward < least_token_reward {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-4 mined token_reward < least_token_reward".to_owned(),
+                    ));
                 }
                 total_block_reward += block_reward;
                 total_token_reward += token_reward;
@@ -446,11 +510,15 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
                 let expected_token_reward = u128::from(*block_reward) * u128::from(reward_pool)
                     / u128::from(total_block_reward);
                 if expected_token_reward != u128::from(*token_reward) {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-4 mined expected_token_reward != token_reward".to_owned(),
+                    ));
                 }
             }
             if (reward_pool - counter) > total_token_reward || total_token_reward > reward_pool {
-                return Err(Error::Unreachable);
+                return Err(Error::Unreachable(
+                    "round-4 mined check total_token_reward".to_owned(),
+                ));
             }
             expected_total_reward += reward_pool * token::BYTE_SHANNONS;
             assets_append!(assets_total, assets, "round 4 mined");
@@ -467,16 +535,22 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
             for result in reader.records() {
                 let record = result?;
                 if record.len() != 4 {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-5.1 mined record length".to_owned(),
+                    ));
                 }
                 counter += 1;
                 let block_reward = record.get(2).unwrap().parse::<u64>().unwrap();
                 if block_reward < least_block_reward {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-5.1 block_reward < least_block_reward".to_owned(),
+                    ));
                 }
                 let token_reward = record.get(3).unwrap().parse::<u64>().unwrap();
                 if token_reward < least_token_reward {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-5.1 token_reward < least_token_reward".to_owned(),
+                    ));
                 }
                 total_block_reward += block_reward;
                 total_token_reward += token_reward;
@@ -496,11 +570,15 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
                 let expected_token_reward = u128::from(*block_reward) * u128::from(reward_pool)
                     / u128::from(total_block_reward);
                 if expected_token_reward != u128::from(*token_reward) {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-5.1 expected_token_reward != token_reward".to_owned(),
+                    ));
                 }
             }
             if (reward_pool - counter) > total_token_reward || total_token_reward > reward_pool {
-                return Err(Error::Unreachable);
+                return Err(Error::Unreachable(
+                    "round-5.1 check total_token_reward".to_owned(),
+                ));
             }
             expected_total_reward += reward_pool * token::BYTE_SHANNONS;
             assets_append!(assets_total, assets, "round 5.1 mined");
@@ -517,16 +595,22 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
             for result in reader.records() {
                 let record = result?;
                 if record.len() != 4 {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-5.2 mined record length".to_owned(),
+                    ));
                 }
                 counter += 1;
                 let block_reward = record.get(2).unwrap().parse::<u64>().unwrap();
                 if block_reward < least_block_reward {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-5.2 block_reward < least_block_reward".to_owned(),
+                    ));
                 }
                 let token_reward = record.get(3).unwrap().parse::<u64>().unwrap();
                 if token_reward < least_token_reward {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-5.2 token_reward < least_token_reward".to_owned(),
+                    ));
                 }
                 total_block_reward += block_reward;
                 total_token_reward += token_reward;
@@ -546,11 +630,15 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
                 let expected_token_reward = u128::from(*block_reward) * u128::from(reward_pool)
                     / u128::from(total_block_reward);
                 if expected_token_reward != u128::from(*token_reward) {
-                    return Err(Error::Unreachable);
+                    return Err(Error::Unreachable(
+                        "round-5.2 expected_token_reward != token_reward".to_owned(),
+                    ));
                 }
             }
             if (reward_pool - counter) > total_token_reward || total_token_reward > reward_pool {
-                return Err(Error::Unreachable);
+                return Err(Error::Unreachable(
+                    "round-5.2 check total_token_reward".to_owned(),
+                ));
             }
             expected_total_reward += reward_pool * token::BYTE_SHANNONS;
             assets_append!(assets_total, assets, "round 5.2 mined");
@@ -581,7 +669,9 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
                 }
             }
             if (reward_pool - counter) > total_token_reward || total_token_reward > reward_pool {
-                return Err(Error::Unreachable);
+                return Err(Error::Unreachable(
+                    "round-5.3 mined check total_token_reward".to_owned(),
+                ));
             }
             expected_total_reward += reward_pool * token::BYTE_SHANNONS;
             assets_append!(assets_total, assets, "round 5.3 mined");
@@ -618,7 +708,10 @@ fn process_competition(chain_data: &client::ChainData) -> Result<(Vec<asset::Ass
     );
     log::info!("    testnet   actual total reward = {}", total_reward);
     if expected_total_reward < total_reward {
-        return Err(Error::Unreachable);
+        return Err(Error::Unreachable(format!(
+            "expected_total_reward(={}) < total_reward(={})",
+            expected_total_reward, total_reward
+        )));
     }
     let remained = constants::INITIAL_TOTAL_SUPPLY / 200 - total_reward;
     log::info!("    testnet remained tokens = {}", remained);

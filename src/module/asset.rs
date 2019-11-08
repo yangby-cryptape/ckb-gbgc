@@ -250,15 +250,31 @@ fn parse_since_from_str(date: &str, epoch: u64, planned_epoch: u64) -> Result<u6
     let mut date_split = date.split('-');
     let year = date_split
         .next()
-        .ok_or(Error::Unreachable)?
+        .ok_or_else(|| Error::Unreachable(format!("split year from '{}'", date)))?
         .parse::<u64>()?;
-    let month = date_split.next().ok_or(Error::Unreachable)?.parse::<u8>()?;
-    let day = date_split.next().ok_or(Error::Unreachable)?.parse::<u8>()?;
+    let month = date_split
+        .next()
+        .ok_or_else(|| Error::Unreachable(format!("split month from '{}'", date)))?
+        .parse::<u8>()?;
+    let day = date_split
+        .next()
+        .ok_or_else(|| Error::Unreachable(format!("split day from '{}'", date)))?
+        .parse::<u8>()?;
     if date_split.next().is_some() {
-        return Err(Error::Unreachable);
+        return Err(Error::Unreachable(format!(
+            "'{}' has redundant fields",
+            date
+        )));
     }
-    let start = timestamp::timestamp(2019, 11, 16, 6, 0, 0).ok_or(Error::Unreachable)?;
-    let end = timestamp::timestamp(year, month, day, 0, 0, 0).ok_or(Error::Unreachable)?;
+    let start = timestamp::timestamp(2019, 11, 16, 6, 0, 0).ok_or_else(|| {
+        Error::Unreachable("failed to compute timestamp for 2019-11-16 06-00-00".to_owned())
+    })?;
+    let end = timestamp::timestamp(year, month, day, 0, 0, 0).ok_or_else(|| {
+        Error::Unreachable(format!(
+            "failed to compute timestamp for {}-{}-{} 06-00-00",
+            year, month, day
+        ))
+    })?;
     let epoches = (end - start) / (60 * 60 * 4);
     let remainder = (end - start) % (60 * 60 * 4);
     log::trace!(
