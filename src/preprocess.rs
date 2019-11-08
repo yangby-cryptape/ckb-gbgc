@@ -92,11 +92,11 @@ pub fn process(
     }
 
     // Foundation Reserve
-    {
+    let foundation_spent = {
         let res = ckb_resource::Resource::bundled("specs/testnet.toml".to_owned());
         let spec = ckb_chain_spec::ChainSpec::load_from(&res).unwrap();
         let genesis_block = spec.build_genesis().unwrap().data();
-        let foundation_spent = genesis_block
+        genesis_block
             .as_reader()
             .transactions()
             .get(0)
@@ -117,9 +117,17 @@ pub fn process(
                         * token::BYTE_SHANNONS
                     + cfg.message.as_bytes().len() as u64 * token::BYTE_SHANNONS
             })
-            .ok_or_else(|| Error::Unreachable("compute foundation spent".to_owned()))?;
-        log::info!("foundation spent = {}", foundation_spent);
+            .ok_or_else(|| Error::Unreachable("compute foundation spent".to_owned()))?
+    };
+    log::info!("foundation spent = {}", foundation_spent);
+    if foundation_spent != 1_264_963 * token::BYTE_SHANNONS {
+        return Err(Error::Unreachable(format!(
+            "foundation_spent(={}) should be 1_264_963 * 1_0000_0000",
+            foundation_spent
+        )));
+    }
 
+    {
         let foundation_reserve = constants::INITIAL_TOTAL_SUPPLY * 2 / 100 - foundation_spent;
 
         let foundation_cell = hash::extract_from_address_mainnet(constants::FOUNDATION_ADDR)
@@ -171,7 +179,7 @@ pub fn process(
     log::info!("foundation testnet part = {}", testnet_cell.capacity);
     cells.push(testnet_cell);
 
-    let total_supply = cells.iter().map(|cell| cell.capacity).sum::<u64>();
+    let total_supply = cells.iter().map(|cell| cell.capacity).sum::<u64>() + foundation_spent;
     if total_supply != constants::INITIAL_TOTAL_SUPPLY {
         return Err(Error::Unreachable(format!(
             "total supply: expected: {}, actual: {}",
