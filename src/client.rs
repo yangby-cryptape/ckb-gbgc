@@ -262,9 +262,9 @@ pub fn fetch(args: &arguments::Arguments) -> Result<ChainData> {
                 *total_reward += reward;
             }
         }
-        if log::log_enabled!(log::Level::Trace) {
+        if log::log_enabled!(log::Level::Info) {
             for (address, reward) in rewards.iter() {
-                log::trace!(
+                log::info!(
                     "        address {}: {}",
                     faster_hex::hex_string(&address).unwrap(),
                     reward
