@@ -6,4 +6,30 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-fn main() {}
+pub mod arguments;
+pub mod client;
+pub mod constants;
+pub mod data;
+pub mod error;
+pub mod module;
+pub mod preprocess;
+pub mod template;
+
+fn execute() -> error::Result<()> {
+    let args = arguments::build_commandline()?;
+    let chain_data = client::fetch(&args)?;
+    let mut cfg = module::config::Configuration::default();
+    cfg.update_by_last_header(chain_data.header());
+    let (cells, target) = preprocess::process(&args, &chain_data, &cfg)?;
+    cfg.append_cells(cells).update_target(target);
+    template::fill(&args, &cfg)
+}
+
+fn main() {
+    pretty_env_logger::init();
+
+    if let Err(error) = execute() {
+        eprintln!("Fatal: {}", error);
+        ::std::process::exit(1);
+    }
+}

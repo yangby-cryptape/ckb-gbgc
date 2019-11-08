@@ -5,6 +5,24 @@ authors = ["Boyu Yang <yangby@cryptape.com>"]
 edition = "2018"
 
 [dependencies]
+uckb-jsonrpc-client = { git = "https://github.com/unofficial-ckb/uckb-jsonrpc-sdk.git", rev = "a8316e2" }
+ckb-chain-spec = { git = "https://github.com/nervosnetwork/ckb.git", rev = "1f88147" }
+ckb-resource   = { git = "https://github.com/nervosnetwork/ckb.git", rev = "1f88147" }
+clap = { version = "~2.33", features = ["yaml"] }
+failure = "~0.1"
+log = "~0.4"
+pretty_env_logger = "~0.3"
+property = "~0.2"
+csv = "~1.1"
+bech32 = "~0.7"
+faster-hex = "~0.4"
+tinytemplate = "~1.0"
+serde = "~1.0"
+serde_derive = "~1.0"
+futures = "~0.1"
+tokio = "~0.1"
+parking_lot = "~0.9"
+toml = "~0.5"
 
 [badges]
 travis-ci = { repository = "yangby-cryptape/ckb-gbgc" }

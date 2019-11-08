@@ -1,0 +1,34 @@
+name: CKB Genesis Block Generator (GBG) Candidate
+version: "0.1.0"
+about: |
+    [Unofficial & Experimental] CKB Genesis Block Generator (GBG) Candidate.
+author: Boyu Yang <yangby@cryptape.com>
+args:
+    - url:
+        help: Specify a HTTP address of a JSON-RPC server.
+        long: url
+        takes_value: true
+        default_value: "http://localhost:8114"
+        required: true
+    - epoch:
+        help: Specify an epoch number.
+        long: epoch
+        takes_value: true
+        default_value: "89"
+        required: true
+    - planned-epoch:
+        help: (For Development Purposes Only) Specify the planned epoch number.
+        long: planned-epoch
+        takes_value: true
+        default_value: "89"
+        required: true
+    - input:
+        help: Specify a path to input the issued cells.
+        long: input
+        takes_value: true
+        required: true
+    - output:
+        help: Specify a path to save the genesis spec.
+        long: output
+        takes_value: true
+        required: true
