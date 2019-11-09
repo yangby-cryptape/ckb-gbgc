@@ -63,15 +63,19 @@ pub fn process(
                             Error::Unreachable(format!("parse mainnet address from '{}'", addr))
                         })?;
                     let cell = if let Some(date) = date_opt {
-                        asset::Owner::new_multi(
-                            vec![hash],
-                            0,
-                            1,
-                            date,
-                            args.epoch(),
-                            args.planned_epoch(),
-                        )
-                        .map(|owner| owner.with_bytes(ckb))?
+                        if date == "" || date == "\"\"" {
+                            asset::Owner::new_single(hash).with_bytes(ckb)
+                        } else {
+                            asset::Owner::new_multi(
+                                vec![hash],
+                                0,
+                                1,
+                                date,
+                                args.epoch(),
+                                args.planned_epoch(),
+                            )
+                            .map(|owner| owner.with_bytes(ckb))?
+                        }
                     } else {
                         asset::Owner::new_single(hash).with_bytes(ckb)
                     }
