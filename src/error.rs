@@ -38,8 +38,6 @@ pub enum Error {
         _1, _0
     )]
     EpochTooSmall(u64, u64),
-    #[fail(display = "argument error: the path of input file ({}) is existed", _0)]
-    InputNotExisted(String),
     #[fail(
         display = "argument error: the path of output file ({}) is existed",
         _0

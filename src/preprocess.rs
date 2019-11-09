@@ -38,8 +38,7 @@ pub fn process(
     // Imported Part
     {
         let imported_expected = (u128::from(constants::INITIAL_TOTAL_SUPPLY) * 725 / 1000) as u64;
-        let mut imported_cells = args
-            .input()
+        let mut imported_cells = data::GENESIS_ALLOCATE
             .lines()
             .map(|line| {
                 let mut part = line.split(',');
@@ -66,15 +65,8 @@ pub fn process(
                         if date == "" || date == "\"\"" {
                             asset::Owner::new_single(hash).with_bytes(ckb)
                         } else {
-                            asset::Owner::new_multi(
-                                vec![hash],
-                                0,
-                                1,
-                                date,
-                                args.epoch(),
-                                args.planned_epoch(),
-                            )
-                            .map(|owner| owner.with_bytes(ckb))?
+                            asset::Owner::new_multi(vec![hash], 0, 1, date, args.epoch())
+                                .map(|owner| owner.with_bytes(ckb))?
                         }
                     } else {
                         asset::Owner::new_single(hash).with_bytes(ckb)
@@ -142,18 +134,11 @@ pub fn process(
                 ))
             })?
             .and_then(|hash| {
-                asset::Owner::new_multi(
-                    vec![hash],
-                    0,
-                    1,
-                    constants::FOUNDATION_SINCE,
-                    args.epoch(),
-                    args.planned_epoch(),
-                )
-                .map(|owner| {
-                    log::trace!("foundation owner = {}", owner);
-                    owner.with_shannons(foundation_reserve)
-                })
+                asset::Owner::new_multi(vec![hash], 0, 1, constants::FOUNDATION_SINCE, args.epoch())
+                    .map(|owner| {
+                        log::trace!("foundation owner = {}", owner);
+                        owner.with_shannons(foundation_reserve)
+                    })
             })
             .map(asset::Asset::into_cell)?;
         log::info!("foundation part = {}", foundation_cell.capacity);

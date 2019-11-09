@@ -16,17 +16,6 @@ args:
         takes_value: true
         default_value: "89"
         required: true
-    - planned-epoch:
-        help: (For Development Purposes Only) Specify the planned epoch number.
-        long: planned-epoch
-        takes_value: true
-        default_value: "89"
-        required: true
-    - input:
-        help: Specify a path to input the issued cells.
-        long: input
-        takes_value: true
-        required: true
     - output:
         help: Specify a path to save the genesis spec.
         long: output

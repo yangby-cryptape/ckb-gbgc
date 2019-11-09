@@ -17,3 +17,5 @@ pub const ROUND_3_LUCKY: &str = include_str!("competitions/round-3/epoch_reward.
 pub const ROUND_4_MINED: &str = include_str!("competitions/round-4/miner_reward.csv");
 pub const ROUND_5_S1_MINED: &str = include_str!("competitions/round-5/stage-1/miner_reward.csv");
 pub const ROUND_5_S2_MINED: &str = include_str!("competitions/round-5/stage-2/miner_reward.csv");
+
+pub const GENESIS_ALLOCATE: &str = include_str!("allocate/genesis_final.csv");

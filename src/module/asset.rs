@@ -201,14 +201,13 @@ impl Owner {
         threshold: u8,
         since_str: &str,
         epoch: u64,
-        planned_epoch: u64,
     ) -> Result<Self> {
         if hashes.len() >= usize::from(threshold) && threshold >= require_first_n {
             Ok(Self::Multi {
                 hashes,
                 require_first_n,
                 threshold,
-                since: parse_since_from_str(since_str, epoch, planned_epoch)?,
+                since: parse_since_from_str(since_str, epoch)?,
             })
         } else {
             Err(Error::InvalidMultiSignature)
@@ -246,7 +245,7 @@ impl Owner {
     }
 }
 
-fn parse_since_from_str(date: &str, epoch: u64, planned_epoch: u64) -> Result<u64> {
+fn parse_since_from_str(date: &str, epoch: u64) -> Result<u64> {
     let mut date_split = date.split('-');
     let year = date_split
         .next()
@@ -288,9 +287,9 @@ fn parse_since_from_str(date: &str, epoch: u64, planned_epoch: u64) -> Result<u6
         remainder
     );
     let target_epoch = {
-        let (number, index) = if epoches + planned_epoch > epoch {
+        let (number, index) = if epoches + constants::PLANNED_EPOCH > epoch {
             (
-                epoches + planned_epoch - epoch,
+                epoches + constants::PLANNED_EPOCH - epoch,
                 remainder * 1800 / (60 * 60 * 4),
             )
         } else {

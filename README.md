@@ -11,12 +11,11 @@
 ## Usage
 
 ```bash
-# Set the level of logger
-export RUST_LOG=warn,ckb_gbgc=info
+# Set the level of logger, default is "warn,ckb_gbgc=info"
+# #export GBGC_LOG=warn,ckb_gbgc=trace
 cargo run --release -- \
     --url "http://YOUR-CKB-JSONRPC-SERVER-ADDRESS:PORT" \
     --epoch DEFAULT-IS-89 \
-    --input "THE-ISSUED-CELLS-LIST-FILE" \
     --output "THE-OUTPUT-SPEC-TOML"
 ```
 

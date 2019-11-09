@@ -1,2 +1,3 @@
 * text auto
 *.csv text eol=crlf
+genesis_final.csv text eol=lf

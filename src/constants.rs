@@ -24,3 +24,4 @@ pub const CONFIRMATIONS: u64 = 11;
 pub const INITIAL_TOTAL_SUPPLY: u64 = 3_360_000_000_000_000_000;
 
 pub const EPOCH_AVG_COUNT: u64 = 4;
+pub const PLANNED_EPOCH: u64 = 90;
