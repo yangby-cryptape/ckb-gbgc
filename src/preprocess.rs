@@ -89,7 +89,7 @@ pub fn process(
 
     // Foundation Reserve
     let foundation_spent = {
-        let res = ckb_resource::Resource::bundled("specs/testnet.toml".to_owned());
+        let res = ckb_resource::Resource::bundled("specs/mainnet.toml".to_owned());
         let spec = ckb_chain_spec::ChainSpec::load_from(&res).unwrap();
         let genesis_block = spec.build_genesis().unwrap().data();
         genesis_block
